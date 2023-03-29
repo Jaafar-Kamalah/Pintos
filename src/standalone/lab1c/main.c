@@ -21,8 +21,6 @@
  *
  * valgrind --tool=memcheck ./main
  */
-#error Read comments above, then remove this line.
-
 
 /* Can be used to inform compiler about unused parameters (prevent
  * warning). Useful when a funtion pointer expect a certain set of
@@ -88,9 +86,19 @@ int main (void)
     /*! allocates a copy of the input and inserts in map */
     obj = my_strdup(input_buffer);
     id = map_insert(&container, obj);
+
+    //Felhantering för insättning
+    if(id < 0)
+    {
+      printf("Map is full. Object was not inserted!\n");
+    }
+    else
+    {
+      printf("Object inserted at index %d.\n", id);
+    }
   }
 
-  /* remember to test with invalid keys (like 4711, or -1) */
+  /* /\* remember to test with invalid keys (like 4711, or -1) *\/ */
   for ( i = 0; i < LOOPS; ++i)
   {
     printf("Enter id to find value for: ");
@@ -98,9 +106,16 @@ int main (void)
 
     /*! find the value for a key in the map */
     obj = map_find(&container, id);
-
+    
     /*! if it was found, display it */
-YOUR CODE
+    if(obj != NULL)
+    {
+      printf("Value in map at index %d found: %s\n", id, obj);
+    }
+    else
+    {
+      printf("The id %d is not valid in map.\n", id);
+    }
 
     /* since we leave the value in the map we may use it again and
      * should not free the memory */
@@ -116,9 +131,17 @@ YOUR CODE
     obj = map_remove(&container, id);
 
     /*! if it was found, display it */
-YOUR CODE
+    if(obj != NULL)
+    {
+      printf("Value in map at index %d removed: %s\n", id, obj);
+    }
+    else
+    {
+      printf("The id %d is not valid in map.\n", id);
+    }
     /* since we removed the value from the map we will never use it again and
      * must properly free the memory (if it was allocated) */
+    free(obj);
   }
 
   /*! print all strings representing an integer less than N */
