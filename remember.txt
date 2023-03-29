@@ -1,0 +1,102 @@
+*Reference Guide: A i stanford är bra att läsa
+------------------------------------------------------------------------------------------
+*Wiki har en sektion med otillåtna lösningar. Kolla på den innan du börjar lösa.
+------------------------------------------------------------------------------------------
+När Pintos låser sig:
+Ctrl-a och sedan x för att avsluta emulatorn QEMU. Bekräftas med: 
+QEMU: Terminated
+Fungerar inte:  öppna en ny terminal och i den kör:
+killall pintos
+------------------------------------------------------------------------------------------
+För att se hur flaggor används:
+pintos --help
+------------------------------------------------------------------------------------------
+QEMU:
+<Ctrl-Alt> : i det grafiska fönstret tar eller släpper kontroll
+över tangentbord och mus.
+<Ctrl-a x> : Avslutar emulatorn. Släpp control innan du trycker på x.
+Kan behöva tryckas flitigt för att ge effekt.
+------------------------------------------------------------------------------------------
+Se hur main avslutades:
+echo $?
+------------------------------------------------------------------------------------------
+Kompilera C:
+gcc -Wall -Wextra -std=c99 -pedantic -g assignment1.c
+
+(Programmet kommer heta a.out om du inte döper om det med flaggan -o
+Ofta behöver du också lägga till flaggan -m32, för att kompilera i 32-bitarsläge. I och med att Pintos är ett
+32-bitars operativsystem är vissa exempel designade för ett 32-bitarssystem. Behövs denna flaggan står det
+i kommentaren överst i programfilen.)
+------------------------------------------------------------------------------------------
+För C teckenhantering:
+printf, strlen, strlcpy, strtok_r
+------------------------------------------------------------------------------------------
+Visualiseringsverktyg:
+/courses/TDIU16/progvis/start
+------------------------------------------------------------------------------------------
+GDP
+Starta: gdb: -tui ./run
+Byt fokus: ctrl + x, o
+Korrigera överskrivning: ctrl + l
+
+Starta felsökning: run eller r
+Skriv ut variabel: print <data> eller p <data>
+
+Brytpunkt: break <fil>:<rad> eller b <rad> (för filen som visas ovan)
+Ta bort bytpunkt: disable/enable <brytpunktnummber>
+
+Fortsätt: continoue eller c
+
+Skriv ut datamedlem efter varje kommando: display <data>
+Ta bort display: undisplay <diplay nummer>
+
+Nästa rad: step eller s
+Nästa rad & hoppa över funktionsanrop: next eller n
+Till slutet av funktionen: finish eller f
+
+visa stacklista: backtrace eller bt
+Gå till frame: frame <frame nummer> eller f <frame nummer>
+
+------------------------------------------------------------------------------------------
+Utskrift i sumargv:
+Copying ../examples/sumargv into /tmp/isDOqhs8qo.dsk...
+Writing command line to /tmp/RujDqF3kiX.dsk...
+qemu-system-i386 -drive file=/tmp/RujDqF3kiX.dsk,index=0,format=raw -drive file=/tmp/e9zdyAjWuA.dsk,index=1,format=raw -drive file=/tmp/isDOqhs8qo.dsk,index=2,format=raw -m 4 -net none -monitor null -nographic -device isa-debug-exit,iobase=0xf4,iosize=0x04
+SeaBIOS (version 1.13.0-1ubuntu1.1)
+Booting from Hard Disk..Kernel command line: -f -q put sumargv run sumargv
+Pintos booting with 3,968 kB RAM...
+356 pages available in kernel pool.
+355 pages available in user pool.
+# main#1: thread_create("idle", ...) RETURNS 2
+Calibrating timer... 524,288,000 loops/s.
+hd0:0: detected 169 sector (84 kB) disk, model "QEMU HARDDISK", serial "QM00001"
+hd0:1: detected 4,032 sector (1 MB) disk, model "QEMU HARDDISK", serial "QM00002"
+hd1:0: detected 97 sector (48 kB) disk, model "QEMU HARDDISK", serial "QM00003"
+Formatting file system...done.
+Boot complete.
+Putting 'sumargv' into the file system...
+Executing 'sumargv':
+# main#1: process_execute("sumargv") ENTERED
+# main#1: thread_create("sumargv", ...) RETURNS 3
+# Preparing to power off...
+ERROR: Main thread about to poweroff with 2 other threads still running!
+ERROR: Check your implementation of process_execute() and process_wait().
+# sumargv#3: start_process("sumargv") ENTERED
+# sumargv#3: start_process(...): load returned 1
+# sumargv#3: start_process("sumargv") DONE
+Executed an unknown system call!
+Stack top + 0: 1
+Stack top + 1: 0
+# sumargv#3: process_cleanup() ENTERED
+sumargv: exit(-1)
+# sumargv#3: process_cleanup() DONE with status -1
+Timer: 1000 interrupts per second
+Timer: 416 ticks
+Thread: 51 idle ticks, 360 kernel ticks, 6 user ticks
+hd0:0: 0 reads, 0 writes
+hd0:1: 60 reads, 202 writes
+hd1:0: 97 reads, 0 writes
+Console: 1365 characters output
+Keyboard: 0 keys pressed
+Exception: 0 page faults
+Powering off...

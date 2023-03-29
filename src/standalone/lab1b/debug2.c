@@ -38,7 +38,7 @@ void print_numbers(int *numbers, int count)
 {
   for (int i = 0; i < count; i++) {
     int number = numbers[i];
-    printf("Number %d: %d\n", i, number);
+    printf("Number %2d: %3d\n", i, number);
   }
 }
 
@@ -49,7 +49,6 @@ void print_with_header(const char *header, int *numbers, int count)
   printf("------------------\n");
 
   print_numbers(numbers, count);
-  free(numbers);
 }
 
 int main(void)

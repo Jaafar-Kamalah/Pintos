@@ -23,7 +23,7 @@ char *my_strdup(const char *original)
 {
   int length = strlen(original);
   char *copy = malloc(sizeof(char) * length);
-  for (int i = 0; i < length; i++)
+  for (int i = 0; i <= length; i++)
     copy[i] = original[i];
   return copy;
 }
