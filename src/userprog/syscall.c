@@ -45,20 +45,22 @@ static void
 syscall_handler (struct intr_frame *f)
 {
   int32_t* esp = (int32_t*)f->esp;
-  printf("Syscall handler called.\n");
-  switch ( esp[0] /* retrive syscall number */ )
+
+  int32_t syscall_number = esp[0];
+  printf("syscall_handler ENTERED.\n");
+
+  switch ( syscall_number )
   {
-    case 0:
+    case SYS_HALT: 
     {
-      printf("Executing system call: HALT\n");
+      printf("Executing system call: HALT.\n");
       power_off();
       break;
     }
     
-    case 1:
+    case SYS_EXIT:
     {
-      printf("Executing system call: EXIT\n");
-      printf("Status code: %d\n", esp[1]);
+      printf("Executing system call: EXIT. Status code: %d\n", esp[1]);
       thread_exit();
       break;
     }
