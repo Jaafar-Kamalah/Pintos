@@ -1,7 +1,10 @@
-Måste man specifera TAGS filen varje gång det används?
-"M-*" är undefined. (Ska hoppa tillbaka efter en TAGS sökning)
-Ska sumargv ge exakt samma output som i wiki_pintos?
+Generella frågor:
+*Måste man specifera TAGS filen varje gång det används?
 
 Lab1 del c:
 *Måste map variabler vara privata?
 *Varför används UNUSED?
+
+Lab2 del b:
+*Behöver eof hanteras på speciellt sätt i read/write?
+*Behöver man skirva ut tecken när man kör read?
