@@ -45,9 +45,9 @@ static void
 syscall_handler (struct intr_frame *f)
 {
   int32_t* esp = (int32_t*)f->esp;
-
   int32_t syscall_number = esp[0];
-  printf("syscall_handler ENTERED.\n");
+  
+  //printf("syscall_handler ENTERED.\n");
 
   switch ( syscall_number )
   {
@@ -60,8 +60,78 @@ syscall_handler (struct intr_frame *f)
     
     case SYS_EXIT:
     {
-      printf("Executing system call: EXIT. Status code: %d\n", esp[1]);
+      printf("Executing system call: EXIT. Status code: %d.\n", esp[1]);
       thread_exit();
+      break;
+    }
+
+    case SYS_WRITE:
+    {
+      int fd = esp[1];
+      char* buffer = (char*)esp[2];
+      unsigned size = esp[3];
+      int32_t ret = size;
+      
+      printf("Executing system call: Write. Size: %u.", size);
+      
+      if(fd == STDOUT_FILENO)
+      {
+        printf(" Writing to: console.\n");
+        putbuf(buffer, size);
+      }
+      else if(fd == STDIN_FILENO)
+      {
+        ret = -1;
+      }
+      else
+      {
+        printf(" Writing to: filedescriptor %d.\n", fd);
+        //Implementation later
+      }
+
+      f->eax = ret;
+      break;
+    }
+
+    case SYS_READ:
+    {
+      int fd = esp[1];
+      char* buffer = (char*)esp[2];
+      unsigned size = esp[3];
+      int32_t ret = size;
+      
+      printf("Executing system call: READ. Size: %u.", size);
+      
+      if(fd == STDIN_FILENO)
+      {
+        printf(" Reading from: keyboard.\n");
+        
+        char copy;
+        for(unsigned  i = 0; i < size; i++)
+        {
+          copy = input_getc();
+          if(copy == '\r')
+          {
+            buffer[i] = '\n';
+          }
+          else
+          {
+            buffer[i] = copy;
+          }
+        }
+
+      }
+      else if(fd == STDOUT_FILENO)
+      {
+        ret = -1;
+      }
+      else
+      {
+        printf(" Reading from: filedescriptor %d.\n", fd);
+        //implementation senare
+      }
+
+      f->eax = ret;
       break;
     }
     
