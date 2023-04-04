@@ -2,12 +2,7 @@ Generella frågor:
 *Måste man specifera TAGS filen varje gång det används?
 *Hur testar man eventuell minnesläckage?
 
-Lab1 del c:
-*Varför används UNUSED?
 
 Lab2 del b:
-*Behöver eof hanteras på speciellt sätt i read/write från terminal?
-*Behöver man skirva ut tecken när man kör read i terminal, så att användaren ser vad som skrivs eller ska det hanteras av högre nivå program?
-*I filsystem (wiki): "Alla filer som öppnats av en viss process skall alltid stängas då den och endast den processen avslutar.".
- Ska inte även close() i processen stänga filen?
-*Behöver vi tänka på synkronisation ännu? Från wiki filsystem, struktur: "Kommer synkroniseringen från resterande moduler att räcka, eller behövs mer synkronisering?"
+Ska eof hanteras i write och read från terminal?
+Ska backspace skriva ut någontin?

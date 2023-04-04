@@ -14,6 +14,9 @@
 #include "userprog/process.h"
 #include "devices/input.h"
 
+//Comment printf to remove debugging output in console
+#define DBG(format, ...) //printf(format, ##__VA_ARGS__)
+
 static void syscall_handler (struct intr_frame *);
 
 void
@@ -47,20 +50,20 @@ syscall_handler (struct intr_frame *f)
   int32_t* esp = (int32_t*)f->esp;
   int32_t syscall_number = esp[0];
   
-  //printf("syscall_handler ENTERED.\n");
+  DBG("# Syscall: ");
 
   switch ( syscall_number )
   {
     case SYS_HALT: 
     {
-      printf("Executing system call: HALT.\n");
+      DBG("HALT.\n");
       power_off();
       break;
     }
     
     case SYS_EXIT:
     {
-      printf("Executing system call: EXIT. Status code: %d.\n", esp[1]);
+      DBG("EXIT. Status code: %d.\n", esp[1]);
       thread_exit();
       break;
     }
@@ -72,11 +75,11 @@ syscall_handler (struct intr_frame *f)
       unsigned size = esp[3];
       int32_t ret = size;
       
-      printf("Executing system call: Write. Size: %u.", size);
+      DBG("WRITE. Size: %u.", size);
       
       if(fd == STDOUT_FILENO)
       {
-        printf(" Writing to: console.\n");
+        DBG(" Writing to: console.\n");
         putbuf(buffer, size);
       }
       else if(fd == STDIN_FILENO)
@@ -85,7 +88,7 @@ syscall_handler (struct intr_frame *f)
       }
       else
       {
-        printf(" Writing to: filedescriptor %d.\n", fd);
+        DBG(" Writing to: filedescriptor %d.\n", fd);
         //Implementation later
       }
 
@@ -100,24 +103,27 @@ syscall_handler (struct intr_frame *f)
       unsigned size = esp[3];
       int32_t ret = size;
       
-      printf("Executing system call: READ. Size: %u.", size);
+      DBG("READ. Size: %u.", size);
       
       if(fd == STDIN_FILENO)
       {
-        printf(" Reading from: keyboard.\n");
+        DBG(" Reading from: keyboard.\n");
         
-        char copy;
+        char input;
+        char output;
         for(unsigned  i = 0; i < size; i++)
         {
-          copy = input_getc();
-          if(copy == '\r')
+          input = input_getc();
+          if(input == '\r')
           {
-            buffer[i] = '\n';
+            output = '\n';
           }
           else
           {
-            buffer[i] = copy;
+            output = input;
           }
+          putbuf(&output, 1);
+          buffer[i] = output;
         }
 
       }
@@ -127,7 +133,7 @@ syscall_handler (struct intr_frame *f)
       }
       else
       {
-        printf(" Reading from: filedescriptor %d.\n", fd);
+        DBG(" Reading from: filedescriptor %d.\n", fd);
         //implementation later
       }
 
