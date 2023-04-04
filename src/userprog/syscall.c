@@ -128,7 +128,7 @@ syscall_handler (struct intr_frame *f)
       else
       {
         printf(" Reading from: filedescriptor %d.\n", fd);
-        //implementation senare
+        //implementation later
       }
 
       f->eax = ret;
