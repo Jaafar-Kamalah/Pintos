@@ -15,7 +15,7 @@
 #include "devices/input.h"
 
 //Comment printf to remove debugging output in console
-#define DBG(format, ...) //printf(format, ##__VA_ARGS__)
+#define DBG(format, ...) printf(format, ##__VA_ARGS__)
 
 static void syscall_handler (struct intr_frame *);
 
@@ -68,6 +68,14 @@ syscall_handler (struct intr_frame *f)
       break;
     }
 
+    case SYS_CREATE:
+    {
+      char* name = (char*)esp[1];
+      unsigned size = esp[2];
+      DBG("CREATE. Filename: %s. Filesize: %u.\n", name, size);
+      break;
+    }
+
     case SYS_WRITE:
     {
       int fd = esp[1];
@@ -79,20 +87,22 @@ syscall_handler (struct intr_frame *f)
       
       if(fd == STDOUT_FILENO)
       {
-        DBG(" Writing to: console.\n");
+        DBG(" Writing to: console. Buffer: \"");
         putbuf(buffer, size);
       }
       else if(fd == STDIN_FILENO)
       {
+        DBG(" Writing to wrong buffer!");
         ret = -1;
       }
       else
       {
-        DBG(" Writing to: filedescriptor %d.\n", fd);
+        DBG(" Writing to: filedescriptor %d.", fd);
         //Implementation later
       }
-
+      
       f->eax = ret;
+      DBG("\" Return value: %d.\n", ret);
       break;
     }
 
@@ -107,7 +117,7 @@ syscall_handler (struct intr_frame *f)
       
       if(fd == STDIN_FILENO)
       {
-        DBG(" Reading from: keyboard.\n");
+        DBG(" Reading from: keyboard. Char: \"");
         
         char input;
         char output;
@@ -129,15 +139,17 @@ syscall_handler (struct intr_frame *f)
       }
       else if(fd == STDOUT_FILENO)
       {
+        DBG(" Reading to wrong buffer!");
         ret = -1;
       }
       else
       {
-        DBG(" Reading from: filedescriptor %d.\n", fd);
+        DBG(" Reading from: filedescriptor %d.", fd);
         //implementation later
       }
 
       f->eax = ret;
+      DBG("\" Return: %d.\n", f->eax);
       break;
     }
     
