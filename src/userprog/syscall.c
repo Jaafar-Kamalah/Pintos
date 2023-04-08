@@ -15,7 +15,7 @@
 #include "devices/input.h"
 
 //Comment printf to remove debugging output in console
-#define DBG(format, ...) printf(format, ##__VA_ARGS__)
+#define DBG(format, ...) //printf(format, ##__VA_ARGS__)
 
 static void syscall_handler (struct intr_frame *);
 
@@ -72,7 +72,88 @@ syscall_handler (struct intr_frame *f)
     {
       char* name = (char*)esp[1];
       unsigned size = esp[2];
-      DBG("CREATE. Filename: %s. Filesize: %u.\n", name, size);
+      int32_t ret;
+     
+      DBG("CREATE. Filename: %s. Filesize: %u.", name, size);
+      if(filesys_create(name, size))
+      {
+        DBG(" Creation successful!");
+        ret = true;
+      }
+      else
+      {
+        DBG(" Creation failed!");
+        ret = false;
+      }
+      
+      f->eax = ret;
+      DBG(" Return value: %d.\n", f->eax);      
+      break;
+    }
+
+    case SYS_REMOVE:
+    {
+      char* name = (char*)esp[1];
+      int32_t ret;
+      
+      DBG("REMOVE. Filename: %s.", name);
+      if(filesys_remove(name))
+      {
+        DBG(" Remove successful!");
+        ret = true;
+      }
+      else
+      {
+        DBG(" Remove failed!");
+        ret = false;
+      }
+      
+      f->eax = ret;
+      DBG(" Return value: %d.\n", f->eax);      
+      break;
+    }
+
+    case SYS_OPEN:
+    {
+      char* name = (char*)esp[1];
+      int32_t ret;
+      //NULL if name does not exist
+      struct file* file_ptr = filesys_open(name);
+      
+      DBG("OPEN. Filename: %s.", name);
+      if(file_ptr)
+      {
+        //Inserts new file in open_files flist and returns corresponding index.
+        //Since index 0 and 1 for fd are reserved we want to start at 2.
+        ret = flist_insert(&thread_current()->open_files, file_ptr) + 2;
+      }
+      else
+      {
+        DBG(" File does not exist!");
+        ret = -1;
+      }
+      
+      f->eax = ret;
+      DBG(" Return value: %d.\n", f->eax);      
+      break;
+    }
+    
+    case SYS_CLOSE:
+    {
+      int fd = esp[1];
+      //NULL if fd-2 is not open.
+      struct file* file_ptr = flist_find(&thread_current()->open_files, fd-2);
+  
+      DBG("CLOSE. Filedescriptor: %d.\n", fd);
+      if(file_ptr)
+      {
+        file_close(flist_find(&thread_current()->open_files, fd-2));
+        flist_remove(&thread_current()->open_files, fd-2);
+      }
+      else
+      {
+        DBG(" File is not open!");
+      }
       break;
     }
 
@@ -83,12 +164,12 @@ syscall_handler (struct intr_frame *f)
       unsigned size = esp[3];
       int32_t ret = size;
       
-      DBG("WRITE. Size: %u.", size);
-      
+      DBG("WRITE. Size: %u.", size);      
       if(fd == STDOUT_FILENO)
       {
         DBG(" Writing to: console. Buffer: \"");
         putbuf(buffer, size);
+        DBG("\"");
       }
       else if(fd == STDIN_FILENO)
       {
@@ -98,11 +179,21 @@ syscall_handler (struct intr_frame *f)
       else
       {
         DBG(" Writing to: filedescriptor %d.", fd);
-        //Implementation later
+        //NULL if fd-2 is not open.
+        struct file* file_ptr = flist_find(&thread_current()->open_files, fd-2);
+        if(file_ptr)
+        {
+          ret = file_write(file_ptr, buffer, size);
+        }
+        else
+        {
+          DBG(" File not open!");
+          ret = -1;
+        }
       }
       
       f->eax = ret;
-      DBG("\" Return value: %d.\n", ret);
+      DBG(" Return value: %d.\n", f->eax);
       break;
     }
 
@@ -113,14 +204,12 @@ syscall_handler (struct intr_frame *f)
       unsigned size = esp[3];
       int32_t ret = size;
       
-      DBG("READ. Size: %u.", size);
-      
+      DBG("READ. Size: %u.", size);      
       if(fd == STDIN_FILENO)
-      {
-        DBG(" Reading from: keyboard. Char: \"");
-        
+      {                
         char input;
         char output;
+        DBG(" Reading from: keyboard. Char: \"");
         for(unsigned  i = 0; i < size; i++)
         {
           input = input_getc();
@@ -135,7 +224,7 @@ syscall_handler (struct intr_frame *f)
           putbuf(&output, 1);
           buffer[i] = output;
         }
-
+        DBG("\"");
       }
       else if(fd == STDOUT_FILENO)
       {
@@ -145,11 +234,84 @@ syscall_handler (struct intr_frame *f)
       else
       {
         DBG(" Reading from: filedescriptor %d.", fd);
-        //implementation later
+        //NULL if fd-2 is not open.
+        struct file* file_ptr = flist_find(&thread_current()->open_files, fd-2);
+        if(file_ptr)
+        {
+          ret = file_read(file_ptr, buffer, size);
+        }
+        else
+        {
+          DBG(" File not open!"); 
+          ret = -1;
+        }
+      } 
+
+      f->eax = ret;
+      DBG(" Return: %d.\n", f->eax);
+      break;
+    }
+
+    case SYS_FILESIZE:
+    {
+      int fd = esp[1];
+      int32_t ret;
+      //NULL if fd-2 is not open.
+      struct file* file_ptr = flist_find(&thread_current()->open_files, fd-2);
+
+      DBG("FILESIZE. Filedescriptor: %d.", fd);
+      if(file_ptr)
+      {
+        ret = file_length(file_ptr);
+      }
+      else
+      {
+        DBG(" File is not open!");
+        ret = -1;
       }
 
       f->eax = ret;
-      DBG("\" Return: %d.\n", f->eax);
+      DBG(" Return: %d.\n", f->eax);
+      break;
+    }
+
+    case SYS_SEEK:
+    {
+      int fd = esp[1];
+      unsigned position = esp[2];
+      struct file* file_ptr = flist_find(&thread_current()->open_files, fd-2);
+      
+      DBG("SEEK. Filedescriptor: %d. Position: %u.\n", fd, position);
+      if(file_ptr)
+      {
+        if(position > (unsigned)file_length(file_ptr))
+        {
+          DBG(" Position is larger than filesize.\n");
+          position = file_length(file_ptr);
+        }
+        file_seek(file_ptr, position);
+      }      
+      break;
+    }
+
+    case SYS_TELL:
+    {
+      int fd = esp[1];
+      int32_t ret;      
+      struct file* file_ptr = flist_find(&thread_current()->open_files, fd-2);
+      
+      DBG("TELL. Filedescriptor: %d.", fd);
+      if(file_ptr)
+      {
+        ret = file_tell(file_ptr);
+      }
+      else
+      {
+        ret = -1;
+      }
+      
+      f->eax = ret;
+      DBG(" Return: %d.\n", f->eax);
       break;
     }
     

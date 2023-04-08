@@ -25,7 +25,6 @@
 /* HACK defines code you must remove and implement in a proper way */
 #define HACK
 
-
 /* This function is called at boot time (threads/init.c) to initialize
  * the process subsystem. */
 void process_init(void)
@@ -235,6 +234,8 @@ process_cleanup (void)
   uint32_t       *pd  = cur->pagedir;
   int status = -1;
 
+  flist_close_open_files(&cur->open_files);
+  
   debug("%s#%d: process_cleanup() ENTERED\n", cur->name, cur->tid);
 
   /* Later tests DEPEND on this output to work correct. You will have

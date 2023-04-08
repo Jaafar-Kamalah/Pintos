@@ -71,10 +71,6 @@ Du kan till exempel inte allokera minne med malloc förrän minneshanteringsmodu
 	->Som kontroll att en fd är giltig
 *Du kan behöva modifiera implementation i A, B och Pintos kod.
 
-*Lagra map ihop med processen (thread).
-*Map ska lagra <fd><struct file*>
-*Lägg implementationen i src/userprog/flist.h och src/userprog/flist.c
-*Implementation ska modifieras för filer.
 *Ifall anrop misslyckas ska resurser (minne, öppna filer) återställas korrekt.
        ->Kanske i process_cleanup()
 

@@ -6,3 +6,7 @@ Generella frågor:
 Lab2 del b:
 Ska eof hanteras i write och read från terminal?
 Ska backspace skriva ut någontin?
+
+Lab2 del c:
+Är en array av 32 pekare i struct thread för mycket minne på kernal stacken?
+(Ska pekarna läggas på heap och är filpekarna (value) i heap)

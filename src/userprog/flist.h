@@ -1,5 +1,5 @@
-#ifndef _MAP_H_
-#define _MAP_H_
+#ifndef _FLIST_H_
+#define _FLIST_H_
 
 /* Place code to keep track of your per-process open file table here.
  *
@@ -64,4 +64,31 @@
  * what size limit that may be appropriate.
  */
 
+#include <stdbool.h>
+
+#define FLIST_SIZE 64 //Pintos stores max 16 files
+
+typedef struct file* value_t;
+typedef int key_t; //file descriptor
+
+
+struct flist
+{
+  value_t content[FLIST_SIZE];
+};
+
+void flist_init(struct flist* m);
+
+key_t flist_insert(struct flist* m, value_t v);
+value_t flist_find(struct flist* m, key_t k);
+value_t flist_remove(struct flist* m, key_t k);
+
+void flist_close_open_files(struct flist* m);
+
+void flist_for_each(struct flist* m,
+                  void (*exec)(key_t k, value_t v, int aux), int aux);
+void flist_remove_if(struct flist* m,
+                    bool (*cond)(key_t k, value_t v, int aux), int aux);
+
 #endif
+ 
