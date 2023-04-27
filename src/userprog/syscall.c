@@ -126,6 +126,11 @@ syscall_handler (struct intr_frame *f)
         //Inserts new file in open_files flist and returns corresponding index.
         //Since index 0 and 1 for fd are reserved we want to start at 2.
         ret = flist_insert(&thread_current()->open_files, file_ptr) + 2;
+        if(ret == -1)
+        {
+          //Not enough space in flist, close file
+          filesys_close(file_ptr);
+        }
       }
       else
       {

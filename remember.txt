@@ -86,3 +86,6 @@ ska implementeras.
 
 *Funktionerna i src/filesys/filesys.h, samt i src/filesys/file.h.
 
+------------------------------------------------------------------------------------------
+                     Lab 3: Viktig information
+src/examples/longrun.c ska fungera felfrit i slutet av labben.

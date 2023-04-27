@@ -18,11 +18,17 @@ struct running_thread {
 
   // Om tråden är klar: Resultatet som "do_work" har beräknat.
   int result;
+
+  //Semafor för exec och wait att synkronisera
+  struct semaphore done;
 };
 
 // Första funktionen som körs i nya trådar.
 void thread_main(struct running_thread *data) {
   data->result = do_work(data->param);
+  
+  //do_work är klar -> wait får läsa resultat.
+  sema_up(&data->done);
 }
 
 // Starta en ny tråd som kör funktionen "do_work" med "param" som
@@ -34,9 +40,12 @@ struct running_thread *exec(int param) {
   struct running_thread *data = malloc(sizeof(struct running_thread));
   data->param = param;
 
+  //initiera semaphor till 0 -> wait får inte läsa resultat tills sema_up.
+  sema_init(&data->done, 0);
+
   // Skapa en ny tråd som kör "thread_main" och ge den tillgång till "data".
   thread_new(&thread_main, data);
-
+  
   return data;
 }
 
@@ -44,6 +53,9 @@ struct running_thread *exec(int param) {
 // från den. "wait" frigör också "data", så vi antar att "wait" bara anropas en
 // gång för varje anrop till "exec".
 int wait(struct running_thread *data) {
+  //Vänta på att exec är klar
+  sema_down(&data->done);
+  
   // Hämta resultatet, frigör minnet och returnera resultatet.
   int result = data->result;
   free(data);
