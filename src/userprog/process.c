@@ -50,6 +50,8 @@ void process_print_list()
 struct parameters_to_start_process
 {
   char* command_line;
+  struct semaphore start_process_done;
+  bool start_process_success;
 };
 
 static void
@@ -84,15 +86,43 @@ process_execute (const char *command_line)
 
   strlcpy_first_word (debug_name, command_line, 64);
 
+  // Initialize semaphor to 0 -> so process_execute waits for start_process
+  sema_init(&arguments.start_process_done, 0);
+  
   /* SCHEDULES function `start_process' to run (LATER) */
   thread_id = thread_create (debug_name, PRI_DEFAULT,
                              (thread_func*)start_process, &arguments);
 
-  process_id = thread_id;
+  if(thread_id == -1)
+  {
+    //Thread not created -> start_process never called -> no need to wait
+    process_id = -1;
 
-  /* AVOID bad stuff by turning off. YOU will fix this! */
-  power_off();
+    debug("%s#%d: process_execute(\"%s\") reads UNSUCCESSFUL thread_create\n",
+            thread_current()->name,
+            thread_current()->tid,
+            command_line);
+  }
+  else
+  {
+    //Wait for start_process to finnish using arguments and reporting if
+    //executable program was loaded successfully.
+    sema_down(&arguments.start_process_done);
 
+    if(arguments.start_process_success)
+    {
+      process_id = thread_id;
+    }
+    else
+    {      
+      process_id = -1;
+      
+      debug("%s#%d: process_execute(\"%s\") reads UNSUCCESSFUL process_start\n",
+            thread_current()->name,
+            thread_current()->tid,
+            command_line);
+    }
+  }
 
   /* WHICH thread may still be using this right now? */
   free(arguments.command_line);
@@ -163,6 +193,13 @@ start_process (struct parameters_to_start_process* parameters)
 
 //    dump_stack ( PHYS_BASE + 15, PHYS_BASE - if_.esp + 16 );
 
+    //Report to process_execute that start_process was successful.
+    parameters->start_process_success = true;
+  }
+  else
+  {
+    //Report to process_execute that start_process was unsuccessful.
+    parameters->start_process_success = false;
   }
 
   debug("%s#%d: start_process(\"%s\") DONE\n",
@@ -170,7 +207,10 @@ start_process (struct parameters_to_start_process* parameters)
         thread_current()->tid,
         parameters->command_line);
 
-
+  //start_process done using parameters and reporting if executable program was
+  //loaded successfully.
+  sema_up(&parameters->start_process_done);
+  
   /* If load fail, quit. Load may fail for several reasons.
      Some simple examples:
      - File doeas not exist

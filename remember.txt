@@ -88,4 +88,5 @@ ska implementeras.
 
 ------------------------------------------------------------------------------------------
                      Lab 3: Viktig information
-src/examples/longrun.c ska fungera felfrit i slutet av labben.
+*Relevant info i ”Tråd- och processhantering i Pintos”.                    
+*src/examples/longrun.c ska fungera felfrit i slutet av labben.

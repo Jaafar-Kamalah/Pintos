@@ -1,4 +1,3 @@
 Generella frågor:
-*Måste man specifera TAGS filen varje gång det används?
 *Hur kan man ändra indentering i tdiu16-labs mappen. (Får automatisk indentering när jag kör if/for/while/case + enter.)
 
