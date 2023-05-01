@@ -31,7 +31,7 @@
 #include "threads/synch.h"
 #include <stdbool.h>
 
-#define PLIST_SIZE 200 
+#define PLIST_SIZE 100
 
 struct process
 {

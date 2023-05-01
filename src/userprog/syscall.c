@@ -18,7 +18,7 @@
 #include "devices/input.h"
 
 //Comment printf to remove debugging output in console
-#define DBG(format, ...)printf(format, ##__VA_ARGS__)
+#define DBG(format, ...) printf(format, ##__VA_ARGS__)
 
 static void syscall_handler (struct intr_frame *);
 
@@ -79,10 +79,22 @@ syscall_handler (struct intr_frame *f)
     char* file = (char*)esp[1];
     int32_t ret;
         
-    DBG("EXEC. Filename: %s.", file);
+    DBG("EXEC. Filename: %s.\n", file);
     ret = process_execute(file);
     f->eax = ret;
-    DBG(" Return value: %d.\n", f->eax);  
+    DBG("Exec return value: %d.\n", f->eax);  
+    break;
+  }
+
+  case SYS_WAIT:
+  {
+    int child = esp[1];
+    int32_t ret;
+    
+    DBG("WAIT. Child PID: %d.\n", child);
+    ret = process_wait(child);
+    f->eax = ret;
+    DBG("Wait return value: %d.\n", f->eax);      
     break;
   }
 

@@ -241,10 +241,18 @@ start_process (struct parameters_to_start_process* parameters)
     parameters->start_process_success = false;
   }
 
-  debug("%s#%d: start_process(\"%s\") DONE\n",
+  debug("%s#%d: start_process(\"%s\") DONE PID: %d \n",
         thread_current()->name,
         thread_current()->tid,
-        parameters->command_line);
+        parameters->command_line, parameters->pid);
+  if(success)
+  {
+    debug("succes\n");
+  }
+  else
+  {
+    debug("failure\n");
+  }
 
   //start_process done using parameters and reporting if executable program was
   //loaded successfully.
@@ -282,12 +290,29 @@ start_process (struct parameters_to_start_process* parameters)
 int
 process_wait (int child_id)
 {
-  int status = -1;
+  int status;
   struct thread *cur = thread_current ();
 
   debug("%s#%d: process_wait(%d) ENTERED\n",
         cur->name, cur->tid, child_id);
+  
   /* Yes! You need to do something good here ! */
+  struct process* child = plist_find(child_id);
+  if(child == NULL || child->parent_pid != cur->pid)
+  {
+    status = -1;
+  }
+  else
+  {
+    sema_down(&child->exit_status_ready);
+    status = child->exit_status;
+
+    //child exit_status no longer needed -> remove child from plist 
+    plist_remove(child_id);
+    free(child);
+    debug("PID: %d HARD DELETE in WAIT\n", child_id);
+  }
+  
   debug("%s#%d: process_wait(%d) RETURNS %d\n",
         cur->name, cur->tid, child_id, status);
 
@@ -297,19 +322,21 @@ process_wait (int child_id)
 void process_list_cleanup(int exited_pid)
 {
   struct process* exited = plist_find(exited_pid);
-
+  debug("PID: %d ", exited_pid);
   if(exited == NULL)
   {
-    debug("PID: %d not found in plist: plist_cleanup exited.\n", exited_pid);
+    //debug("PID: %d not found in plist: plist_cleanup exited.\n", exited_pid);
+    debug("not found in plist: plist_cleanup exited.\n");
   }
   else
   {
-    if(exited->parent_dead)
+    if(exited->parent_dead) // or exited->parent_pid == -1)
     {
       //exited and exited parent dead
       //remove exited and all affected that are no longer needed from plist 
       plist_remove(exited_pid);
       free(exited);
+      debug("HARD DELETE\n");
     }
     else
     {
@@ -320,18 +347,23 @@ void process_list_cleanup(int exited_pid)
       // exit status will be -1 if process crashed
       // exit status will be 0 if process exited succesfully
       // exit status will be >0 if process exited unsuccesfully
+      debug("SOFT DELETE\n");
     }
     
     //update children processes and remove if no longer needed
     for(int i = 0; i < PLIST_SIZE; i++)
     {
-      if(process_list.content[i]->parent_pid == exited_pid)
+      if(process_list.content[i] != NULL)
       {
-        process_list.content[i]->parent_dead = true;
-        if(process_list.content[i]->dead)
+        if(process_list.content[i]->parent_pid == exited_pid)
         {
-          //child now is dead and has dead parent -> remove recursively
-          process_list_cleanup(i);
+          debug("CHILD_PID: %d parent deleted\n", i);
+          process_list.content[i]->parent_dead = true;
+          if(process_list.content[i]->dead)
+          {
+            //child now is dead and has dead parent -> remove recursively
+            process_list_cleanup(i);
+          }
         }
       }
     }
@@ -363,7 +395,7 @@ process_cleanup (void)
   //remove and free all processes from plist that after this exit are not needed
   process_list_cleanup(cur->pid);
   
-  debug("%s#%d: process_cleanup() ENTERED \n", cur->name, cur->tid);
+  debug("%s#%d: process_cleanup() ENTERED PID: %d \n", cur->name, cur->tid, cur->pid);
 
   /* Later tests DEPEND on this output to work correct. You will have
    * to find the actual exit status in your process list. It is

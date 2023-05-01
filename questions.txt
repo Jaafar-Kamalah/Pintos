@@ -1,3 +1,2 @@
 Generella frågor:
-*Hur kan man ändra indentering i tdiu16-labs mappen. (Får automatisk indentering när jag kör if/for/while/case + enter.)
-
+Ska första processen returnera något till kernal (main() tråden)? Ifall nej: avkomentera i process.c rad 316 (process_list_cleanup)
