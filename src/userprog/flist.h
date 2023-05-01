@@ -83,12 +83,7 @@ key_t flist_insert(struct flist* m, value_t v);
 value_t flist_find(struct flist* m, key_t k);
 value_t flist_remove(struct flist* m, key_t k);
 
-void flist_close_open_files(struct flist* m);
-
-void flist_for_each(struct flist* m,
-                  void (*exec)(key_t k, value_t v, int aux), int aux);
-void flist_remove_if(struct flist* m,
-                    bool (*cond)(key_t k, value_t v, int aux), int aux);
+void flist_cleanup(struct flist* m);
 
 #endif
  

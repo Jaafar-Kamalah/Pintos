@@ -11,6 +11,9 @@ int process_wait (tid_t);
 void process_cleanup (void);
 void process_activate (void);
 
+void process_list_cleanup(int exited_pid);
+
+
 /* This is unacceptable solutions. */
 #define INFINITE_WAIT() for ( ; ; ) thread_yield()
 #define BUSY_WAIT(n)       \

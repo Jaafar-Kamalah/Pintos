@@ -1,6 +1,7 @@
 #include <debug.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "userprog/gdt.h"      /* SEL_* constants */
 #include "userprog/process.h"
@@ -36,8 +37,9 @@ void process_init(void)
  * instead. Note however that all cleanup after a process must be done
  * in process_cleanup, and that process_cleanup are already called
  * from thread_exit - do not call cleanup twice! */
-void process_exit(int status UNUSED)
+void process_exit(int status)
 {
+  process_list.content[thread_current()->pid]->exit_status = status;
 }
 
 /* Print a list of all running processes. The list shall include all
@@ -50,8 +52,12 @@ void process_print_list()
 struct parameters_to_start_process
 {
   char* command_line;
+  
   struct semaphore start_process_done;
   bool start_process_success;
+
+  int parent_pid; //set by process_execute
+  int pid; //set by start_process_
 };
 
 static void
@@ -85,9 +91,14 @@ process_execute (const char *command_line)
 
 
   strlcpy_first_word (debug_name, command_line, 64);
-
   // Initialize semaphor to 0 -> so process_execute waits for start_process
   sema_init(&arguments.start_process_done, 0);
+
+  // Initialize parrent pid of new process to current pid
+  arguments.parent_pid = thread_current()->pid;
+
+  //Initialize pid of new process to -1 incase start_process fails
+  arguments.pid = -1;
   
   /* SCHEDULES function `start_process' to run (LATER) */
   thread_id = thread_create (debug_name, PRI_DEFAULT,
@@ -99,9 +110,9 @@ process_execute (const char *command_line)
     process_id = -1;
 
     debug("%s#%d: process_execute(\"%s\") reads UNSUCCESSFUL thread_create\n",
-            thread_current()->name,
-            thread_current()->tid,
-            command_line);
+          thread_current()->name,
+          thread_current()->tid,
+          command_line);
   }
   else
   {
@@ -111,7 +122,7 @@ process_execute (const char *command_line)
 
     if(arguments.start_process_success)
     {
-      process_id = thread_id;
+      process_id = arguments.pid;
     }
     else
     {      
@@ -193,8 +204,36 @@ start_process (struct parameters_to_start_process* parameters)
 
 //    dump_stack ( PHYS_BASE + 15, PHYS_BASE - if_.esp + 16 );
 
-    //Report to process_execute that start_process was successful.
-    parameters->start_process_success = true;
+    //Insert process information in process_list
+    struct process* ins = malloc(sizeof(struct process));
+    strlcpy_first_word (ins->name, parameters->command_line, 64);
+    ins->parent_pid = parameters->parent_pid;
+    ins->exit_status = -1;
+    sema_init(&ins->exit_status_ready, 0);
+    ins->dead = false;
+    ins->parent_dead = false;
+
+    int insert_ret = plist_insert(ins);
+
+    if(insert_ret == -1)
+    {
+      //process_list is full
+      debug("%s#%d: start_process(\"%s\") Process list full!\n",
+            thread_current()->name,
+            thread_current()->tid,
+            parameters->command_line);
+      free(ins);
+      parameters->start_process_success = false;
+    }
+    else
+    {
+      //Update pid in struct thread
+      thread_current()->pid = insert_ret;
+
+      //Report to process_execute that start_process was successful.
+      parameters->start_process_success = true;
+      parameters->pid = insert_ret;
+    }
   }
   else
   {
@@ -255,6 +294,50 @@ process_wait (int child_id)
   return status;
 }
 
+void process_list_cleanup(int exited_pid)
+{
+  struct process* exited = plist_find(exited_pid);
+
+  if(exited == NULL)
+  {
+    debug("PID: %d not found in plist: plist_cleanup exited.\n", exited_pid);
+  }
+  else
+  {
+    if(exited->parent_dead)
+    {
+      //exited and exited parent dead
+      //remove exited and all affected that are no longer needed from plist 
+      plist_remove(exited_pid);
+      free(exited);
+    }
+    else
+    {
+      //exited dead but exited parent alive -> update exited values
+      exited->dead = true;
+      sema_up(&exited->exit_status_ready);
+      // parent can now read exited exit_status
+      // exit status will be -1 if process crashed
+      // exit status will be 0 if process exited succesfully
+      // exit status will be >0 if process exited unsuccesfully
+    }
+    
+    //update children processes and remove if no longer needed
+    for(int i = 0; i < PLIST_SIZE; i++)
+    {
+      if(process_list.content[i]->parent_pid == exited_pid)
+      {
+        process_list.content[i]->parent_dead = true;
+        if(process_list.content[i]->dead)
+        {
+          //child now is dead and has dead parent -> remove recursively
+          process_list_cleanup(i);
+        }
+      }
+    }
+  }
+}
+
 /* Free the current process's resources. This function is called
    automatically from thread_exit() to make sure cleanup of any
    process resources is always done. That is correct behaviour. But
@@ -274,9 +357,13 @@ process_cleanup (void)
   uint32_t       *pd  = cur->pagedir;
   int status = -1;
 
-  flist_close_open_files(&cur->open_files);
+  //close and free all open files in flist for process
+  flist_cleanup(&cur->open_files);
+
+  //remove and free all processes from plist that after this exit are not needed
+  process_list_cleanup(cur->pid);
   
-  debug("%s#%d: process_cleanup() ENTERED\n", cur->name, cur->tid);
+  debug("%s#%d: process_cleanup() ENTERED \n", cur->name, cur->tid);
 
   /* Later tests DEPEND on this output to work correct. You will have
    * to find the actual exit status in your process list. It is

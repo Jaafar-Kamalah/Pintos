@@ -52,7 +52,7 @@ value_t flist_remove(struct flist* m, key_t k)
   }
 }
 
-void flist_close_open_files(struct flist* m)
+void flist_cleanup(struct flist* m)
 {
   for(int i = 0; i < FLIST_SIZE; i++)
   {
@@ -61,33 +61,6 @@ void flist_close_open_files(struct flist* m)
     {
       file_close(flist_find(m, i));
       flist_remove(m, i);
-    }
-  }
-}
-
-void flist_for_each(struct flist* m,
-                  void (*exec)(key_t k, value_t v, int aux), int aux)
-{
-  for(int i = 0; i < FLIST_SIZE; i++)
-  {
-    if(m->content[i] != NULL)
-    {
-      exec(i, m->content[i], aux);
-    }
-  }
-}
-
-void flist_remove_if(struct flist* m,
-                    bool (*cond)(key_t k, value_t v, int aux), int aux)
-{
-  for(int i = 0; i < FLIST_SIZE; i++)
-  {
-    if(m->content[i] != NULL)
-    {
-      if(cond(i, m->content[i], aux))
-      {
-        m->content[i] = NULL;
-      }
     }
   }
 }

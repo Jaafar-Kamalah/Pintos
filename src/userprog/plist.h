@@ -28,6 +28,35 @@
      clean, readable format.
 
  */
+#include "threads/synch.h"
+#include <stdbool.h>
 
+#define PLIST_SIZE 200 
+
+struct process
+{
+  char name[64];
+
+  bool dead;
+  int exit_status;
+  struct semaphore exit_status_ready;
+
+  int parent_pid;
+  bool parent_dead;
+};
+
+struct plist
+{
+  struct process* content[PLIST_SIZE];
+};
+
+extern struct plist process_list; //declare global plist, definition in plist.c
+
+void plist_init(void);
+int plist_insert(struct process* v);
+struct process* plist_find(int pid);
+struct process* plist_remove(int k);
+
+void plist_print(void);
 
 #endif

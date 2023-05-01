@@ -96,6 +96,7 @@ struct thread
 
     /* YES! You may want to add stuff. But make note of point 2 above. */
     struct flist open_files;
+    int pid; //main thread (kernal) has pid -1. (set in thread_init)
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
