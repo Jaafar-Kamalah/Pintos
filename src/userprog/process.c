@@ -391,9 +391,6 @@ process_cleanup (void)
 
   //close and free all open files in flist for process
   flist_cleanup(&cur->open_files);
-
-  //remove and free all processes from plist that after this exit are not needed
-  process_list_cleanup(cur->pid);
   
   debug("%s#%d: process_cleanup() ENTERED PID: %d \n", cur->name, cur->tid, cur->pid);
 
@@ -404,7 +401,13 @@ process_cleanup (void)
    * that may sometimes poweroff as soon as process_wait() returns,
    * possibly before the printf is completed.)
    */
+  
+  status = plist_find(cur->pid)->exit_status;
   printf("%s: exit(%d)\n", thread_name(), status);
+
+  //update exited processes to dead and let waiting parents know child is dead 
+  //remove and free all processes from plist that after this exit are not needed
+  process_list_cleanup(cur->pid);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

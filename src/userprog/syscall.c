@@ -18,7 +18,7 @@
 #include "devices/input.h"
 
 //Comment printf to remove debugging output in console
-#define DBG(format, ...) printf(format, ##__VA_ARGS__)
+#define DBG(format, ...) //printf(format, ##__VA_ARGS__)
 
 static void syscall_handler (struct intr_frame *);
 
@@ -306,7 +306,7 @@ syscall_handler (struct intr_frame *f)
     }
 
     f->eax = ret;
-    DBG(" Return: %d.\n", f->eax);
+    DBG("# Return: %d.\n", f->eax);
     break;
   }
 
@@ -346,7 +346,7 @@ syscall_handler (struct intr_frame *f)
     }
       
     f->eax = ret;
-    DBG(" Return: %d.\n", f->eax);
+    DBG("# Return: %d.\n", f->eax);
     break;
   }
 
