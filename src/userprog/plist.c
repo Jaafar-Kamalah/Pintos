@@ -12,6 +12,8 @@ void plist_init(void)
   {
     process_list.content[i] = NULL;
   }
+  lock_init(&process_list.lock);
+  lock_init(&process_list.insert_lock);
 }
 
 int plist_insert(struct process* v)
@@ -19,9 +21,17 @@ int plist_insert(struct process* v)
 
   for(int i = 0; i < PLIST_SIZE; i++)
   {
-    if(process_list.content[i] == NULL)
+    //lock to avoid to threads inserting process in same slot
+    lock_acquire(&process_list.insert_lock);
+    bool slot_availaible = process_list.content[i] == NULL;    
+    if(slot_availaible)
     {
       process_list.content[i] = v;
+    }
+    lock_release(&process_list.insert_lock);
+
+    if(slot_availaible)
+    {
       return i;
     }
   }
@@ -30,6 +40,7 @@ int plist_insert(struct process* v)
 
 struct process* plist_find(int k)
 {
+  //is always synchronized from the outside
   if(k < 0 || k >= PLIST_SIZE)
   {
     return NULL;
@@ -42,6 +53,7 @@ struct process* plist_find(int k)
 
 struct process* plist_remove(int k)
 {
+  //is always synchronized from the outside
   if(plist_find(k) == NULL)
   {
     return NULL;
@@ -56,6 +68,9 @@ struct process* plist_remove(int k)
 
 void plist_print(void)
 {
+  //Avoid deleting process while printing and printing from two threads at
+  //the same time. 
+  lock_acquire(&process_list.lock);
   printf("////////////////////PROCESS_LIST////////////////////\n");
   printf("%3s %20s %9s %14s %13s %14s\n", "PID", "Name", "State",
          "Exit Status", "Parent PID", "Parent State");
@@ -73,5 +88,5 @@ void plist_print(void)
         }
     }
   printf("////////////////////////////////////////////////////\n");
-
+  lock_release(&process_list.lock);
 }

@@ -31,7 +31,7 @@
 #include "threads/synch.h"
 #include <stdbool.h>
 
-#define PLIST_SIZE 6
+#define PLIST_SIZE 600
 
 struct process
 {
@@ -48,6 +48,8 @@ struct process
 struct plist
 {
   struct process* content[PLIST_SIZE];
+  struct lock lock;
+  struct lock insert_lock;
 };
 
 extern struct plist process_list; //declare global plist, definition in plist.c

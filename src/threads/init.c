@@ -27,7 +27,6 @@
 #include "userprog/syscall.h"
 #include "userprog/tss.h"
 #include "userprog/slowdown.h"
-#include "userprog/plist.h"
 #else
 #include "tests/threads/tests.h"
 #endif
@@ -125,11 +124,6 @@ main (void)
   if (slow_kernel_threads) {
     slowdown_init ();
   }
-#endif
-
-#ifdef USERPROG  
-  //Initialize process_list
-  plist_init();
 #endif
   
   /* Start thread scheduler and enable interrupts. */

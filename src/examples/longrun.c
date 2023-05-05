@@ -69,6 +69,7 @@ int main(int argc, char* argv[])
     {
       snprintf(cmd, 15, "dummy %i", j * simul + i);
       pid[i] = exec(cmd);
+      plist();
     }
 
     /* There will never be more than 'simul' processes running

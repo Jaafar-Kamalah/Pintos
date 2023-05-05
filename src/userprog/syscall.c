@@ -82,7 +82,7 @@ syscall_handler (struct intr_frame *f)
     DBG("EXEC. Filename: %s.\n", file);
     ret = process_execute(file);
     f->eax = ret;
-    DBG("Exec return value: %d.\n", f->eax);  
+    DBG("# Exec return value: %d.\n", f->eax);  
     break;
   }
 
@@ -91,10 +91,10 @@ syscall_handler (struct intr_frame *f)
     int child = esp[1];
     int32_t ret;
     
-    DBG("WAIT. Child PID: %d.\n", child);
+    DBG("# WAIT. Child PID: %d.\n", child);
     ret = process_wait(child);
     f->eax = ret;
-    DBG("Wait return value: %d.\n", f->eax);      
+    DBG("# Wait return value: %d.\n", f->eax);      
     break;
   }
 
@@ -204,7 +204,7 @@ syscall_handler (struct intr_frame *f)
     {
       DBG(" Writing to: console. Buffer: \"");
       putbuf(buffer, size);
-      DBG("\"");
+      DBG("# \" \n");
     }
     else if(fd == STDIN_FILENO)
     {
@@ -228,7 +228,7 @@ syscall_handler (struct intr_frame *f)
     }
       
     f->eax = ret;
-    DBG(" Return value: %d.\n", f->eax);
+    DBG("# Return value: %d.\n", f->eax);
     break;
   }
 

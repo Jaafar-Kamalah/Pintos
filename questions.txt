@@ -2,3 +2,5 @@ Generella frågor:
 Ska första processen returnera något till kernal (main() tråden)? Ifall nej: avkomentera i process.c rad 316 (process_list_cleanup)
 
 Varför kan man fortfarande se error efter wait har implementerats?
+
+Varför ser vi inga krasher utan synkronisering i longrun och longrun_nowait vid stora körningar.

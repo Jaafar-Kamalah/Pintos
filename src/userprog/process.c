@@ -30,6 +30,7 @@
  * the process subsystem. */
 void process_init(void)
 {
+  plist_init();
 }
 
 /* This function is currently never called. As thread_exit does not
@@ -39,6 +40,7 @@ void process_init(void)
  * from thread_exit - do not call cleanup twice! */
 void process_exit(int status)
 {
+  debug("process_exit on PID: %d", thread_current()->pid);
   process_list.content[thread_current()->pid]->exit_status = status;
 }
 
@@ -46,6 +48,7 @@ void process_exit(int status)
  * relevant debug information in a clean, readable format. */
 void process_print_list()
 {
+  plist_print();
 }
 
 
@@ -96,9 +99,6 @@ process_execute (const char *command_line)
 
   // Initialize parrent pid of new process to current pid
   arguments.parent_pid = thread_current()->pid;
-
-  //Initialize pid of new process to -1 incase start_process fails
-  arguments.pid = -1;
   
   /* SCHEDULES function `start_process' to run (LATER) */
   thread_id = thread_create (debug_name, PRI_DEFAULT,
@@ -214,6 +214,7 @@ start_process (struct parameters_to_start_process* parameters)
     ins->parent_dead = false;
 
     int insert_ret = plist_insert(ins);
+    parameters->pid = insert_ret;
 
     if(insert_ret == -1)
     {
@@ -224,22 +225,23 @@ start_process (struct parameters_to_start_process* parameters)
             parameters->command_line);
       free(ins);
       parameters->start_process_success = false;
+      success = false;
     }
     else
     {
-      //Update pid in struct thread
-      thread_current()->pid = insert_ret;
-
       //Report to process_execute that start_process was successful.
       parameters->start_process_success = true;
-      parameters->pid = insert_ret;
     }
   }
   else
   {
     //Report to process_execute that start_process was unsuccessful.
+    parameters->pid = -1;
     parameters->start_process_success = false;
   }
+  
+  //Update pid in struct threads
+  thread_current()->pid = parameters->pid;
 
   debug("%s#%d: start_process(\"%s\") DONE PID: %d \n",
         thread_current()->name,
@@ -297,8 +299,15 @@ process_wait (int child_id)
         cur->name, cur->tid, child_id);
   
   /* Yes! You need to do something good here ! */
+
+  //If a process tries waiting for a non child, the child can be deleted at
+  //any moment. (Synchronization is needed.)
+  lock_acquire(&process_list.lock);
   struct process* child = plist_find(child_id);
-  if(child == NULL || child->parent_pid != cur->pid)
+  bool wait_invalid = child == NULL || child->parent_pid != cur->pid;
+  lock_release(&process_list.lock);
+  
+  if(wait_invalid)
   {
     status = -1;
   }
@@ -307,8 +316,11 @@ process_wait (int child_id)
     sema_down(&child->exit_status_ready);
     status = child->exit_status;
 
-    //child exit_status no longer needed -> remove child from plist 
+    //child exit_status no longer needed -> remove child from plist
+    lock_acquire(&process_list.lock);
     plist_remove(child_id);
+    lock_release(&process_list.lock);
+    
     free(child);
     debug("PID: %d HARD DELETE in WAIT\n", child_id);
   }
@@ -325,15 +337,14 @@ void process_list_cleanup(int exited_pid)
   debug("PID: %d ", exited_pid);
   if(exited == NULL)
   {
-    //debug("PID: %d not found in plist: plist_cleanup exited.\n", exited_pid);
-    debug("not found in plist: plist_cleanup exited.\n");
+    debug("PID: %d not found in plist: plist_cleanup exited.\n", exited_pid);
   }
   else
   {
     if(exited->parent_dead) // or exited->parent_pid == -1)
     {
       //exited and exited parent dead
-      //remove exited and all affected that are no longer needed from plist 
+      //remove exited and all affected that are no longer needed from plist
       plist_remove(exited_pid);
       free(exited);
       debug("HARD DELETE\n");
@@ -351,21 +362,20 @@ void process_list_cleanup(int exited_pid)
     }
     
     //update children processes and remove if no longer needed
+    //acuire lock to avoid processes exiting sim
     for(int i = 0; i < PLIST_SIZE; i++)
     {
-      if(process_list.content[i] != NULL)
+      if(process_list.content[i] != NULL &&
+         process_list.content[i]->parent_pid == exited_pid)
       {
-        if(process_list.content[i]->parent_pid == exited_pid)
+        debug("CHILD_PID: %d parent dead\n", i);
+        process_list.content[i]->parent_dead = true;
+        if(process_list.content[i]->dead)
         {
-          debug("CHILD_PID: %d parent deleted\n", i);
-          process_list.content[i]->parent_dead = true;
-          if(process_list.content[i]->dead)
-          {
-            //child now is dead and has dead parent -> remove recursively
-            process_list_cleanup(i);
-          }
+          //child now is dead and has dead parent -> remove recursively
+          process_list_cleanup(i);
         }
-      }
+      }     
     }
   }
 }
@@ -390,8 +400,10 @@ process_cleanup (void)
   int status = -1;
 
   //close and free all open files in flist for process
-  flist_cleanup(&cur->open_files);
-  
+  if(cur->pid != -1)
+  {
+    flist_cleanup(&cur->open_files);
+  }
   debug("%s#%d: process_cleanup() ENTERED PID: %d \n", cur->name, cur->tid, cur->pid);
 
   /* Later tests DEPEND on this output to work correct. You will have
@@ -401,13 +413,23 @@ process_cleanup (void)
    * that may sometimes poweroff as soon as process_wait() returns,
    * possibly before the printf is completed.)
    */
-  
-  status = plist_find(cur->pid)->exit_status;
-  printf("%s: exit(%d)\n", thread_name(), status);
+
+  if(cur->pid != -1)
+  {
+    //No synchronization needed since process can not be removed from plist
+    //untill process_list_cleanup is called in same thread.
+    status = plist_find(cur->pid)->exit_status;
+  }
+  printf("%s: exit(%d)\n", thread_name(), status); 
 
   //update exited processes to dead and let waiting parents know child is dead 
   //remove and free all processes from plist that after this exit are not needed
-  process_list_cleanup(cur->pid);
+  if(cur->pid != -1)
+  {
+    lock_acquire(&process_list.lock);
+    process_list_cleanup(cur->pid);
+    lock_release(&process_list.lock);
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -443,4 +465,3 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
