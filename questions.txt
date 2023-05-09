@@ -1,6 +1,14 @@
-Generella frågor:
-Ska första processen returnera något till kernal (main() tråden)? Ifall nej: avkomentera i process.c rad 316 (process_list_cleanup)
+Labb 4A:
+*Varför krashar progvis vid slutet av "look for errors" körningen med meddelandet:
+The MPS detected a problem!
+/home/filip-www/storm/mps/code/lockix.c:126: MPS ASSERTION FAILED: res == 0
+/courses/TDIU16/progvis/start: line 5: 1497117 Aborted                 (core dumped) "$DIR"/Storm -f progvis.main
+(Den krashar inte för Jon med samma kod)
 
-Varför kan man fortfarande se error efter wait har implementerats?
+*Är valgrind resultaten okej?
 
-Varför ser vi inga krasher utan synkronisering i longrun och longrun_nowait vid stora körningar.
+*Hur kommer denna lösning vara till Labb 4B?
+
+Labb 4B:
+*Måste man även undvika data races som inte orsakar ett fel.
+*Vi har inte fått tilbaka 3b och 3c än -> ska vi vänta med att börja med 4a.

@@ -48,9 +48,12 @@ struct data_file *data_open(int file) {
   lock_acquire(&global_open_files_lock);
   struct data_file *result = open_files[file];
   bool file_closed = (result == NULL);
+  
   if (file_closed) {
     // Skapa en ny data_file.
     result = malloc(sizeof(struct data_file));
+    // Spara data i "open_files".
+    open_files[file] = result;
     lock_init(&result->open_files_lock);
   }
   lock_acquire(&result->open_files_lock);
@@ -67,14 +70,11 @@ struct data_file *data_open(int file) {
       result->data = strdup("File 0");
     else
       result->data = strdup("File 1");
-
-    // Spara data i "open_files".
-    lock_acquire(&global_open_files_lock);
-    open_files[file] = result;
-    lock_release(&global_open_files_lock);
   } else {
     // Se till att datafilen behöver öppnas igen.
+    //lås lokal redan taget
     data_reopen(result);
+    //släpp lås lokal
   }
   lock_release(&result->open_files_lock);
   return result;
@@ -83,7 +83,7 @@ struct data_file *data_open(int file) {
 // Stäng en datafil. Om ingen annan har filen öppen ska filen avallokeras för
 // att spara minne.
 void data_close(struct data_file *file) {
-
+  
   lock_acquire(&global_open_files_lock);
   lock_acquire(&file->open_files_lock);
   lock_acquire(&file->open_count_lock);
@@ -95,12 +95,12 @@ void data_close(struct data_file *file) {
     open_files[file->id] = NULL;
   }
   lock_release(&file->open_files_lock);
-  lock_release(&global_open_files_lock);
 
   if (file_closed) {
     free(file->data);
     free(file);
   }
+  lock_release(&global_open_files_lock);
 }
 
 
