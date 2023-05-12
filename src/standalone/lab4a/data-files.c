@@ -17,7 +17,7 @@ struct data_file {
   // Data i filen.
   char *data;
 
-  struct lock open_count_lock;
+  //struct lock open_count_lock;
   struct lock open_files_lock;
 };
 
@@ -35,9 +35,9 @@ void data_init(void) NO_STEP {
 // Öppna en datafil som redan är öppen, så att den kan ges vidare till en annan
 // del av systemet som kör close senare.
 void data_reopen(struct data_file *file) {
-  lock_acquire(&file->open_count_lock);
+  lock_acquire(&file->open_files_lock);
   file->open_count++;
-  lock_release(&file->open_count_lock);
+  lock_release(&file->open_files_lock);
 }
 
 // Öppna datafilen med nummer "file" och se till att den finns i RAM. Om den
@@ -62,7 +62,7 @@ struct data_file *data_open(int file) {
   if (file_closed) {
     result->open_count = 1;
     result->id = file;
-    lock_init(&result->open_count_lock);
+    //lock_init(&result->open_count_lock);
 
     // Simulera att vi läser in data...
     timer_msleep(100);
@@ -86,10 +86,10 @@ void data_close(struct data_file *file) {
   
   lock_acquire(&global_open_files_lock);
   lock_acquire(&file->open_files_lock);
-  lock_acquire(&file->open_count_lock);
+  //lock_acquire(&file->open_count_lock);
   int open_count = --file->open_count;
   bool file_closed = (open_count <= 0);
-  lock_release(&file->open_count_lock);
+  //lock_release(&file->open_count_lock);
   if (file_closed) {
     // Ingen har filen öppen längre. Då kan vi ta bort den!
     open_files[file->id] = NULL;
