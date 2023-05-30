@@ -18,7 +18,6 @@ struct data_file {
   char *data;
 
   struct lock open_count_lock;
-  struct lock open_files_lock;
 };
 
 // Håll koll på den fil vi har öppnat. Om ingen fil är öppen är denna variabel NULL.
@@ -44,7 +43,6 @@ void data_reopen(struct data_file *file) {
 // redan råkar vara öppnad ger funktionen tillbaka en pekare till instansen som
 // redan var öppen. Annars laddas filen in i RAM.
 struct data_file *data_open(int file) {
-  
   lock_acquire(&global_open_files_lock);
   struct data_file *result = open_files[file];
   bool file_closed = (result == NULL);
@@ -52,13 +50,7 @@ struct data_file *data_open(int file) {
   if (file_closed) {
     // Skapa en ny data_file.
     result = malloc(sizeof(struct data_file));
-    // Spara data i "open_files".
-    open_files[file] = result;
-    lock_init(&result->open_files_lock);
-  }
-  lock_acquire(&result->open_files_lock);
-  lock_release(&global_open_files_lock);
-  
+  }  
   if (file_closed) {
     result->open_count = 1;
     result->id = file;
@@ -70,10 +62,12 @@ struct data_file *data_open(int file) {
       result->data = strdup("File 0");
     else
       result->data = strdup("File 1");
+    // Spara data i "open_files".
+    open_files[file] = result;
   } else {
     data_reopen(result);
   }
-  lock_release(&result->open_files_lock);
+  lock_release(&global_open_files_lock);
   return result;
 }
 
@@ -82,7 +76,6 @@ struct data_file *data_open(int file) {
 void data_close(struct data_file *file) {
   
   lock_acquire(&global_open_files_lock);
-  lock_acquire(&file->open_files_lock);
   lock_acquire(&file->open_count_lock);
   int open_count = --file->open_count;
   bool file_closed = (open_count <= 0);
@@ -91,7 +84,6 @@ void data_close(struct data_file *file) {
     // Ingen har filen öppen längre. Då kan vi ta bort den!
     open_files[file->id] = NULL;
   }
-  lock_release(&file->open_files_lock);
 
   if (file_closed) {
     free(file->data);

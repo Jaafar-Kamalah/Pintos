@@ -5,6 +5,9 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
+
+struct lock dir_lock;
 
 /* A directory. */
 struct dir
@@ -26,6 +29,7 @@ struct dir_entry
 bool
 dir_create (disk_sector_t sector, size_t entry_cnt)
 {
+  lock_init(&dir_lock);
   return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
 }
 
@@ -124,10 +128,12 @@ dir_lookup (const struct dir *dir, const char *name,
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
+  lock_acquire(&dir_lock);
   if (lookup (dir, name, &e, NULL))
     *inode = inode_open (e.inode_sector);
   else
     *inode = NULL;
+  lock_release(&dir_lock);
 
   return *inode != NULL;
 }
@@ -152,6 +158,8 @@ dir_add (struct dir *dir, const char *name, disk_sector_t inode_sector)
   if (*name == '\0' || strlen (name) > NAME_MAX)
     return false;
 
+  lock_acquire(&dir_lock);
+  
   /* Check that NAME is not in use. */
   if (lookup (dir, name, NULL, NULL))
     goto done;
@@ -173,7 +181,9 @@ dir_add (struct dir *dir, const char *name, disk_sector_t inode_sector)
   strlcpy (e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-
+  
+  lock_release(&dir_lock);
+  
  done:
   return success;
 }
@@ -192,6 +202,7 @@ dir_remove (struct dir *dir, const char *name)
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
+  lock_acquire(&dir_lock);
   /* Find directory entry. */
   if (!lookup (dir, name, &e, &ofs))
     goto done;
@@ -212,6 +223,7 @@ dir_remove (struct dir *dir, const char *name)
 
  done:
   inode_close (inode);
+  lock_release(&dir_lock);
   return success;
 }
 

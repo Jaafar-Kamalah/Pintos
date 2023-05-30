@@ -34,8 +34,12 @@ struct inode
 {
   // Our representation of the data on disk - a single integer.
   int data;
-
+  
   // Add any other members you need for your readers-writers lock here.
+  struct semaphore rw_sema;
+  
+  struct lock read_cnt_lock;
+  int read_cnt;
 };
 
 // Create an inode. We don't need a sector in this implementation.
@@ -44,7 +48,8 @@ struct inode *inode_open(void) NO_STEP
   struct inode *node = malloc(sizeof(struct inode));
 
   node->data = 0;
-
+  sema_init(&node->rw_sema,1);
+  lock_init(&node->read_cnt_lock);
   // Any other initialization...
 
   return node;
@@ -62,24 +67,42 @@ void inode_close(struct inode *inode)
 // take an offset into consideration.
 void inode_read_at(struct inode *inode, int *output)
 {
-
+  lock_acquire(&inode->read_cnt_lock);
+  if(inode->read_cnt == 0)
+  {
+    //No threads reading. If a thread is writing wait for it to finish.
+    sema_down(&inode->rw_sema); 
+  }
+  inode->read_cnt++;
+  lock_release(&inode->read_cnt_lock);
+  
   // This is the simplified version of the code that reads data in the
   // implementation in Pintos. This is enough to trigger appropriate messages in
   // the visualization tool. Add your rw-lock before and after.
   *output = inode->data;
 
+  lock_acquire(&inode->read_cnt_lock);
+  if(inode->read_cnt == 1)
+  {
+    //No threads reading. If a thread is writing wait for it to finish.
+    sema_up(&inode->rw_sema); 
+  }
+  inode->read_cnt--;
+  lock_release(&inode->read_cnt_lock);
 }
 
 // Write data to the inode. Since we don't do actual disk IO, we don't need to
 // take an offset into consideration.
 void inode_write_at(struct inode *inode, int *input)
 {
-
+  sema_down(&inode->rw_sema);
+    
   // This is the simplified version of the code that writes data in the
   // implementation in Pintos. This is enough to trigger appropriate messages in
   // the visualization tool. Add your rw-lock before and after.
   inode->data = *input;
-
+  
+  sema_up(&inode->rw_sema);
 }
 
 
@@ -108,7 +131,6 @@ int main(void) {
   // Spawn threads. Note: "thread_new" works more or less like "thread_create",
   // but you don't need to specify name and priority. "thread_create" does not
   // work in the visualization tool, but "thread_new" does.
-
   thread_new(&writer_thread, inode);
   // thread_new(&writer_thread, inode);
   thread_new(&reader_thread, inode);

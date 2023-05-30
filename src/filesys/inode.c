@@ -38,8 +38,13 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     struct inode_disk data;             /* Inode content. */
-  };
+    struct lock open_cnt_lock;
 
+    //Vairiables for read and write lock
+    struct semaphore rw_sema;           /* Needed to start reading/writing. */
+    struct lock read_cnt_lock;
+    int read_cnt;
+  };
 
 /* Returns the disk sector that contains byte offset POS within
    INODE.
@@ -58,12 +63,15 @@ byte_to_sector (const struct inode *inode, off_t pos)
 /* List of open inodes, so that opening a single inode twice
    returns the same `struct inode'. */
 static struct list open_inodes;
+struct lock open_inodes_lock;
+
 
 /* Initializes the inode module. */
 void
 inode_init (void)
 {
   list_init (&open_inodes);
+  lock_init(&open_inodes_lock);
 }
 
 /* Initializes an inode with LENGTH bytes of data and
@@ -116,7 +124,7 @@ inode_open (disk_sector_t sector)
   struct list_elem *e;
   struct inode *inode;
 
-
+  lock_acquire(&open_inodes_lock);
   /* Check whether this inode is already open. */
   for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
        e = list_next (e))
@@ -125,6 +133,7 @@ inode_open (disk_sector_t sector)
       if (inode->sector == sector)
         {
           inode_reopen (inode);
+          lock_release(&open_inodes_lock);
           return inode;
         }
     }
@@ -133,6 +142,7 @@ inode_open (disk_sector_t sector)
   inode = malloc (sizeof *inode);
   if (inode == NULL)
   {
+    lock_release(&open_inodes_lock);
     return NULL;
   }
 
@@ -142,9 +152,16 @@ inode_open (disk_sector_t sector)
   inode->sector = sector;
   inode->open_cnt = 1;
   inode->removed = false;
+  lock_init(&inode->open_cnt_lock);
+
+  //Initialize read write lock
+  inode->read_cnt = 0;
+  sema_init(&inode->rw_sema,1);
+  lock_init(&inode->read_cnt_lock);
 
   disk_read (filesys_disk, inode->sector, &inode->data);
-
+  lock_release(&open_inodes_lock);
+  
   return inode;
 }
 
@@ -154,7 +171,9 @@ inode_reopen (struct inode *inode)
 {
   if (inode != NULL)
   {
+    lock_acquire(&inode->open_cnt_lock);
     inode->open_cnt++;
+    lock_release(&inode->open_cnt_lock);    
   }
   return inode;
 }
@@ -176,9 +195,13 @@ inode_close (struct inode *inode)
   if (inode == NULL)
     return;
 
-
+  lock_acquire(&open_inodes_lock);
+  lock_acquire(&inode->open_cnt_lock);
+  bool file_closed = (--inode->open_cnt == 0);
+  lock_release(&inode->open_cnt_lock);
+  
   /* Release resources if this was the last opener. */
-  if (--inode->open_cnt == 0)
+  if (file_closed)
     {
       /* Remove from inode list. */
       list_remove (&inode->elem);
@@ -193,8 +216,10 @@ inode_close (struct inode *inode)
         }
 
       free (inode);
-      return;
+      lock_release(&open_inodes_lock);
+      return; //varför? Ta bort den och raden ovan?
     }
+  lock_release(&open_inodes_lock);
 }
 
 /* Marks INODE to be deleted when it is closed by the last caller who
@@ -216,6 +241,15 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
 
+  lock_acquire(&inode->read_cnt_lock);
+  if(inode->read_cnt == 0)
+  {
+    //No threads reading. If a thread is writing wait for it to finish.
+    sema_down(&inode->rw_sema); 
+  }
+  inode->read_cnt++;
+  lock_release(&inode->read_cnt_lock);
+  
   while (size > 0)
     {
       /* Disk sector to read, starting byte offset within sector. */
@@ -250,7 +284,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
           disk_read (filesys_disk, sector_idx, bounce);
           memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
         }
-
+      
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;
@@ -258,6 +292,15 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     }
   free (bounce);
 
+  lock_acquire(&inode->read_cnt_lock);
+  if(inode->read_cnt == 1)
+  {
+    //No threads reading. If a thread is writing wait for it to finish.
+    sema_up(&inode->rw_sema); 
+  }
+  inode->read_cnt--;
+  lock_release(&inode->read_cnt_lock);
+  
   return bytes_read;
 }
 
@@ -274,7 +317,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
 
-
+  sema_down(&inode->rw_sema);
+  
   while (size > 0)
     {
       /* Sector to write, starting byte offset within sector. */
@@ -323,7 +367,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       bytes_written += chunk_size;
     }
   free (bounce);
-
+  sema_up(&inode->rw_sema);
   return bytes_written;
 }
 
