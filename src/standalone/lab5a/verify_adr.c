@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include "pagedir.h"
 #include "thread.h"
+#include <stdio.h>
 
 /* verfy_*_lenght are intended to be used in a system call that accept
  * parameters containing suspisious (user mode) adresses. The
@@ -18,13 +19,26 @@
  *
  *  gcc -Wall -Wextra -std=gnu99 -pedantic -m32 -g pagedir.o verify_adr.c
  */
-#error Read comment above and then remove this line.
 
 /* Verify all addresses from and including 'start' up to but excluding
  * (start+length). */
 bool verify_fix_length(void* start, unsigned length)
 {
-  // ADD YOUR CODE HERE
+  char* start_addr = (char*)start;
+  unsigned start_page = pg_no(start_addr);
+  unsigned end_page = pg_no(start_addr + length - 1); //-1 because excluding
+  
+  for(; start_page <= end_page; start_page++)
+  {
+    if(pagedir_get_page(thread_current()->pagedir, (void *)start_addr) == NULL)
+    {
+      //page invalid
+      return false;
+    }
+    //next page
+    start_addr += PGSIZE;
+  }
+  return true;
 }
 
 /* Verify all addresses from and including 'start' up to and including
@@ -33,7 +47,31 @@ bool verify_fix_length(void* start, unsigned length)
  */
 bool verify_variable_length(char* start)
 {
-  // ADD YOUR CODE HERE
+  unsigned curr_page;
+  bool first_iteration = true;
+  
+  while (true)
+  {
+    if(first_iteration || curr_page != pg_no(start))
+    {
+      // unchecked page
+      first_iteration = false;
+      curr_page = pg_no(start);    
+      if(pagedir_get_page(thread_current()->pagedir, (void *)start) == NULL)
+      {
+        //page invalid
+        return false;
+      }
+    }
+
+    if(is_end_of_string(start))
+    {
+      break;
+    }
+    start++;
+  }
+
+  return true;
 }
 
 /* Definition of test cases. */
@@ -89,3 +127,4 @@ int main(int argc, char* argv[])
   }
   return 0;
 }
+
