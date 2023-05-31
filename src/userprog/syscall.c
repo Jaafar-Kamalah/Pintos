@@ -21,6 +21,8 @@
 #define DBG(format, ...) //printf(format, ##__VA_ARGS__)
 
 static void syscall_handler (struct intr_frame *);
+static bool verify_fix_length(void* start, unsigned length);
+static bool verify_variable_length(char* start);
 
 void
 syscall_init (void)
@@ -47,11 +49,92 @@ const int argc[] = {
   0, 1
 };
 
+/* Verify all addresses from and including 'start' up to but excluding
+ * (start+length). */
+bool verify_fix_length(void* start, unsigned length)
+{
+  char* start_addr = (char*)start;
+  if (start_addr + length >= (char*)PHYS_BASE) {
+    //Address not in user region
+    return false;
+  }
+  
+  unsigned start_page = pg_no(start_addr);
+  unsigned end_page = pg_no(start_addr + length - 1); //-1 because excluding
+  
+  for(; start_page <= end_page; start_page++)
+  {
+    if(pagedir_get_page(thread_current()->pagedir, (void *)start_addr) == NULL)
+    {
+      //page invalid
+      return false;
+    }
+    //next page
+    start_addr += PGSIZE;
+  }
+  return true;
+}
+
+/* Verify all addresses from and including 'start' up to and including
+ * the address first containg a null-character ('\0'). (The way
+ * C-strings are stored.)
+ */
+bool verify_variable_length(char* start)
+{  
+  unsigned curr_page;
+  bool first_iteration = true; 
+  
+  while (true)
+  {
+    if (start >= (char*)PHYS_BASE) {
+      //Address not in user region
+      return false;
+    }
+    if(first_iteration || curr_page != pg_no(start)) 
+    {
+      // unchecked page
+      first_iteration = false;
+      curr_page = pg_no(start);    
+      if(pagedir_get_page(thread_current()->pagedir, (void *)start) == NULL)
+      {
+        //page invalid
+        return false;
+      }
+    }
+
+    if(*start == '\0')
+    {
+      break;
+    }
+    start++;
+  }
+
+  return true;
+}
+
 static void
 syscall_handler (struct intr_frame *f)
 {
+  //verify stackpointer and syscall_number
+  if(!verify_fix_length(f->esp, sizeof(int32_t)))
+  {
+    thread_exit();    
+  }
+  
   int32_t* esp = (int32_t*)f->esp;
   int32_t syscall_number = esp[0];
+  if(syscall_number > SYS_NUMBER_OF_CALLS)
+  {
+    thread_exit();
+  }
+  
+  //verify the rest of the parameters if there are any
+  int sys_arg_count = argc[ syscall_number ];
+  if(sys_arg_count > 0 &&
+     !verify_fix_length((void*)&esp[1], sizeof(int32_t)*sys_arg_count))
+  {
+    thread_exit();
+  }
   
   DBG("# Syscall: ");
 
@@ -78,6 +161,12 @@ syscall_handler (struct intr_frame *f)
   {
     char* file = (char*)esp[1];
     int32_t ret;
+
+    //verify executable file
+    if(!verify_variable_length(file))
+    {
+      thread_exit();
+    }
         
     DBG("EXEC. Filename: %s.\n", file);
     ret = process_execute(file);
@@ -103,6 +192,12 @@ syscall_handler (struct intr_frame *f)
     char* name = (char*)esp[1];
     unsigned size = esp[2];
     int32_t ret;
+
+    //verify file
+    if(!verify_variable_length(name))
+    {
+      thread_exit();
+    }
      
     DBG("CREATE. Filename: %s. Filesize: %u.", name, size);
     if(filesys_create(name, size))
@@ -125,6 +220,12 @@ syscall_handler (struct intr_frame *f)
   {
     char* name = (char*)esp[1];
     int32_t ret;
+
+    //verify file
+    if(!verify_variable_length(name))
+    {
+      thread_exit();
+    }
       
     DBG("REMOVE. Filename: %s.", name);
     if(filesys_remove(name))
@@ -147,6 +248,13 @@ syscall_handler (struct intr_frame *f)
   {
     char* name = (char*)esp[1];
     int32_t ret;
+
+    //verify file
+    if(!verify_variable_length(name))
+    {
+      thread_exit();
+    }
+    
     //NULL if name does not exist
     struct file* file_ptr = filesys_open(name);
       
@@ -198,6 +306,12 @@ syscall_handler (struct intr_frame *f)
     char* buffer = (char*)esp[2];
     unsigned size = esp[3];
     int32_t ret = size;
+
+    //verify buffer
+    if(!verify_fix_length(buffer,size))
+    {
+      thread_exit();
+    }
       
     DBG("WRITE. Size: %u.", size);      
     if(fd == STDOUT_FILENO)
@@ -238,6 +352,12 @@ syscall_handler (struct intr_frame *f)
     char* buffer = (char*)esp[2];
     unsigned size = esp[3];
     int32_t ret = size;
+
+    //verify buffer
+    if(!verify_variable_length(buffer) || is_kernel_vaddr((void*)esp[3]) || !verify_fix_length(buffer, esp[3]))
+    {
+      thread_exit();
+    }
       
     DBG("READ. Size: %u.", size);      
     if(fd == STDIN_FILENO)
@@ -371,7 +491,7 @@ syscall_handler (struct intr_frame *f)
 
     printf ("Stack top + 0: %d\n", esp[0]);
     printf ("Stack top + 1: %d\n", esp[1]);
-
+    
     thread_exit ();
   }
   }
