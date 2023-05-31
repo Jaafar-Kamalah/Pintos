@@ -354,7 +354,7 @@ syscall_handler (struct intr_frame *f)
     int32_t ret = size;
 
     //verify buffer
-    if(!verify_variable_length(buffer) || is_kernel_vaddr((void*)esp[3]) || !verify_fix_length(buffer, esp[3]))
+    if(!verify_fix_length(buffer, size))
     {
       thread_exit();
     }
