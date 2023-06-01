@@ -1,0 +1,9 @@
+make: *** [../Makefile.kernel:10: check] Hangup
+make[1]: *** [../../tests/Make.tests:105: tests/klaar/pfs.output] Hangup
+make[1]: *** [../../tests/Make.tests:105: tests/userprog/halt.output] Hangup
+make[1]: *** [../../tests/Make.tests:105: tests/userprog/exit.output] Hangup
+make[1]: *** [../../tests/Make.tests:105: tests/userprog/create-normal.output] Hangup
+make[1]: *** [../../tests/Make.tests:105: tests/userprog/create-empty.output] Hangup
+make[1]: *** [../../tests/Make.tests:105: tests/userprog/create-null.output] Hangup
+make[1]: *** [../../tests/Make.tests:105: tests/userprog/create-bad-ptr.output] Hangup
+make[1]: *** [../../tests/Make.tests:105: tests/userprog/create-long.output] Hangup
