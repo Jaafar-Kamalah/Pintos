@@ -1,0 +1,12 @@
+# Pintos Operating System Labs
+ 
+This repository contains my solutions to a series of operating systems labs based on Pintos, an educational operating system developed at Stanford University.
+ 
+The lab series focused on low-level systems programming in C, including:
+ 
+- System call implementation
+- Process creation and management
+- Process synchronization
+- File system synchronization
+- Secure system calls
+- Operating system internals and kernel development
